@@ -1,0 +1,10 @@
+We are focusing on porosity issues associated with the "KM RDM Carrier" die. The dataset has been filtered to include only reports that mention "porosity" in the report text and match the die name "KM RDM Carrier".
+
+Porosity impacts casting quality and may be linked to process parameters, tooling condition, venting, melt quality, or maintenance practices.
+
+Please pay particular attention to:
+- Process conditions or parameter changes noted near porosity findings
+- Tooling or die condition issues (wear, damage, vents, thermal balance)
+- Melt quality or temperature concerns (gas, inclusions, holding time)
+- Maintenance actions that coincided with porosity mentions
+- Recurring patterns across similar shifts, equipment, or cavities

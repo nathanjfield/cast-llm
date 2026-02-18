@@ -1,0 +1,92 @@
+
+[project]
+name = "cast-llm"
+version = "0.1.0"
+description = "Categorising downtime reports using an LLM."
+packages = [
+    { include = "cast_llm", from = "src" },
+]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "jupyter>=1.1.1",
+    "ollama>=0.6.1",
+    "pydantic-settings>=2.10.1",
+    "toml>=0.10.2",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.2.0",
+    "pylint>=3.3.7",
+    "pytest>=9.0.0",
+    "pytest-cov>=6.0.0",
+]
+
+[tool.mypy]
+files = ["src"]
+
+[[tool.mypy.overrides]]
+# Add list of modules to ignore
+module = []
+ignore_missing_imports = true
+
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle
+    "F",  # Pyflakes
+    "D",  # pydocstyle
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "SIM",  # flake8-simplify
+    "UP",  # pyupgrade
+]
+
+# Ruff docs recommend against using these alongside the Ruff formatter (cause conflicts)
+# https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules
+ignore = [
+    "E111",
+    "E114",
+    "E117",
+    "D206",
+    "D300",
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+
+[tool.pylint.MASTER]
+extension-pkg-whitelist="pydantic"
+# pylint note: use pylint-django for Django projects
+
+[tool.pylint.FORMAT]
+max-line-length = "88"
+output-format="colorized"
+score="no"
+
+[tool.pylint.REPORTS]
+output-format="colorized"
+score="no"
+
+[tool.pylint.'MESSAGES CONTROL']
+disable=[
+  "C0116",
+  "C0114",
+  "C0115",
+  "C0103",
+  "R0801",
+  "R0903",
+  "R0912",
+  "R0913",
+  "R1702",
+  "W0718",
+]
+
+[tool.bandit]
+exclude_dirs = ["tests"]
