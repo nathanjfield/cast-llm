@@ -22,7 +22,7 @@ uv sync
 
 You can also place a `.env` file in the **project root** (same directory as `pyproject.toml`); settings load it when the process starts. Start Jupyter from the project root so `.env` is found.
 
-3) **Weekly handover (live data)** — Run [notebooks/weekly_handover_pipeline.ipynb](notebooks/weekly_handover_pipeline.ipynb) or `POST /handover/weekly` from CastNet. Edit the date-range cell (UK local → UTC for `date_iso`). By default the service loads **`artifacts/shift_glossary/finalglossary.json`** and injects term/expansion/definition into handover context. Disable with `use_glossary: false` on the API or `CAST_LLM_HANDOVER_GLOSSARY_ENABLED=false`. The notebook runs each tag in `HANDOVER_MODELS` and writes markdown to `/home/castalum/thinclient_drives/AI Serve/` (`weekly_handover_<model_tag>.md`).
+3) **Weekly handover (live data)** — Run [notebooks/weekly_handover_pipeline.ipynb](notebooks/weekly_handover_pipeline.ipynb) or `POST /handover/weekly` from CastNet. Edit the date-range cell (UK local → UTC for `date_iso`). Summaries are limited to equipment flagged **DCM** in CastNet (`equipment.dcm: true`). Assets that only share the name prefix, such as DCM ladders, are left out. By default the service loads **`artifacts/shift_glossary/finalglossary.json`** and injects term/expansion/definition into handover context. Disable with `use_glossary: false` on the API or `CAST_LLM_HANDOVER_GLOSSARY_ENABLED=false`. The notebook runs each tag in `HANDOVER_MODELS` and writes markdown to `/home/castalum/thinclient_drives/AI Serve/` (`weekly_handover_<model_tag>.md`).
 
 4) **One-time glossary backfill (live data)** — build a merged glossary from historical weekly windows:
 

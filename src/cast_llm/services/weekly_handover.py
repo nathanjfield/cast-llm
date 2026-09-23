@@ -6,8 +6,10 @@ import json
 import re
 import time
 import uuid
+from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import date, datetime, time as dt_time, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
+from datetime import time as dt_time
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -15,7 +17,12 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from ollama import chat
 
 from cast_llm.glossary_context import build_handover_context_note
-from cast_llm.mongo_reports import fetch_reports_date_range, group_by_equipment
+from cast_llm.mongo_reports import (
+    fetch_dcm_equipment_names,
+    fetch_reports_date_range,
+    get_castnet_db,
+    group_by_equipment,
+)
 from cast_llm.settings import get_settings
 from cast_llm.utils import get_project_root
 
@@ -94,9 +101,9 @@ def load_weekly_system_prompt() -> str:
     return prompt_path.read_text(encoding="utf-8")
 
 
-def _is_dcm_equipment(name: str) -> bool:
-    """Return true for equipment labels starting with DCM."""
-    return name.strip().upper().startswith("DCM")
+def _normalize_equipment_name(name: str) -> str:
+    """Compare equipment labels ignoring case and repeated spaces."""
+    return " ".join(name.strip().casefold().split())
 
 
 def _dcm_numeric_sort_key(name: str) -> tuple[int, str]:
@@ -105,6 +112,28 @@ def _dcm_numeric_sort_key(name: str) -> tuple[int, str]:
     if match:
         return (int(match.group(1)), name)
     return (10**9, name)
+
+
+def select_dcm_handover_equipment(
+    equipment_names: Iterable[str],
+    dcm_equipment_names: Iterable[str],
+) -> list[str]:
+    """Keep report groups whose name is flagged as a DCM in CastNet.
+
+    Matching is case-insensitive. "DCM Ladder 01" and "DCM 12 Core Filling
+    Platform" are omitted unless those exact assets carry the DCM flag.
+    """
+    allowed = {
+        _normalize_equipment_name(name)
+        for name in dcm_equipment_names
+        if _normalize_equipment_name(name)
+    }
+    selected = [
+        name
+        for name in equipment_names
+        if name.strip() and _normalize_equipment_name(name) in allowed
+    ]
+    return sorted(selected, key=_dcm_numeric_sort_key)
 
 
 def generate_weekly_handover(
@@ -120,7 +149,10 @@ def generate_weekly_handover(
     use_glossary: bool | None = None,
     glossary_path: str | None = None,
 ) -> dict[str, Any]:
-    """Generate DCM handover summaries for an arbitrary or calendar-week local window.
+    """Generate handover summaries for equipment flagged as DCMs.
+
+    Only CastNet equipment with ``dcm: true`` is included. Names that merely
+    start with "DCM" (ladders, platforms) are left out.
 
     Pass either:
 
@@ -157,12 +189,11 @@ def generate_weekly_handover(
         use_glossary=glossary_enabled,
     )
 
-    rows = fetch_reports_date_range(window.start_utc, window.end_utc)
+    db = get_castnet_db()
+    rows = fetch_reports_date_range(window.start_utc, window.end_utc, db=db)
     by_equipment = group_by_equipment(rows)
-    dcm_equipment_order = sorted(
-        (name for name in by_equipment if _is_dcm_equipment(name)),
-        key=_dcm_numeric_sort_key,
-    )
+    dcm_names = fetch_dcm_equipment_names(db=db)
+    dcm_equipment_order = select_dcm_handover_equipment(by_equipment, dcm_names)
 
     task_intro = (
         "Summarise for the oncoming shift on this machine only. Be brief (see system "

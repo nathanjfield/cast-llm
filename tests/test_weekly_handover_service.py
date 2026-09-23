@@ -5,9 +5,11 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
+from cast_llm.mongo_reports import fetch_dcm_equipment_names
 from cast_llm.services.weekly_handover import (
     build_weekly_window,
     build_window_from_local_bounds,
+    select_dcm_handover_equipment,
 )
 
 
@@ -49,3 +51,45 @@ def test_build_window_naive_uses_plant_timezone() -> None:
     )
     assert w.start_local.tzinfo is not None
     assert (w.end_utc - w.start_utc) == timedelta(hours=12)
+
+
+def test_select_dcm_handover_equipment_uses_flag_not_name_prefix() -> None:
+    """Ladders and platforms are omitted unless CastNet flagged them as DCMs."""
+    grouped = [
+        "DCM 10",
+        "DCM 2",
+        "DCM Ladder 03",
+        "DCM 12 Core Filling Platform",
+        "Heller 1",
+        "DCM 1",
+    ]
+    selected = select_dcm_handover_equipment(grouped, ["DCM 1", "DCM 2", "DCM 10"])
+    assert selected == ["DCM 1", "DCM 2", "DCM 10"]
+
+
+def test_select_dcm_handover_equipment_matches_case_and_spacing() -> None:
+    """Report labels still match the registry when casing or spacing differs."""
+    selected = select_dcm_handover_equipment(["dcm  1"], ["DCM 1"])
+    assert selected == ["dcm  1"]
+
+
+def test_fetch_dcm_equipment_names_reads_flagged_registry() -> None:
+    """Only equipment documents with dcm true contribute names."""
+
+    class _Db:
+        def __getitem__(self, name: str):  # type: ignore[no-untyped-def]
+            assert name == "equipment"
+            return self
+
+        def find(self, query, projection):  # type: ignore[no-untyped-def]
+            assert query == {"dcm": True}
+            assert projection == {"_id": 0, "equipment": 1}
+            return [
+                {"equipment": "DCM 1"},
+                {"equipment": "  "},
+                {"equipment": None},
+                {"equipment": "DCM 12"},
+            ]
+
+    names = fetch_dcm_equipment_names(db=_Db())  # type: ignore[arg-type]
+    assert names == {"DCM 1", "DCM 12"}

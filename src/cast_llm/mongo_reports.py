@@ -118,3 +118,25 @@ def group_by_equipment(reports: list[dict[str, Any]]) -> dict[str, list[dict[str
         key = str(row.get("equipment") or "").strip()
         grouped[key].append(row)
     return dict(grouped)
+
+
+def fetch_dcm_equipment_names(
+    *,
+    db: Database[Any] | None = None,
+    uri: str | None = None,
+    db_name: str | None = None,
+    collection_name: str = "equipment",
+) -> set[str]:
+    """Return equipment names flagged ``dcm: true`` in the CastNet registry.
+
+    That flag is the Equipment list "DCM" visibility tag. Name prefixes are not
+    used, so assets such as "DCM Ladder 01" stay out unless they are flagged.
+    """
+    database = db if db is not None else get_castnet_db(uri, db_name)
+    cursor = database[collection_name].find({"dcm": True}, {"_id": 0, "equipment": 1})
+    names: set[str] = set()
+    for doc in cursor:
+        name = str(doc.get("equipment") or "").strip()
+        if name:
+            names.add(name)
+    return names
